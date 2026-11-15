@@ -34,10 +34,15 @@ import net.minecraft.world.level.dimension.DimensionType;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Brady
@@ -150,6 +155,124 @@ public final class CachedWorld implements ICachedWorld, Helper {
             searchRadius++;
         }
         return res;
+    }
+
+    /**
+     * Visits every remembered special block (see {@code CachedChunk.BLOCKS_TO_KEEP_TRACK_OF} and the
+     * {@code extraCachedBlocks} setting) within {@code radius} blocks of a point, however far away it is.
+     * <p>
+     * Unlike {@link #getLocationsOf}, this never keeps a region in RAM that wasn't already there: regions on disk are
+     * answered from their small index file. A region without an up to date index is parsed once to build it, which is
+     * slow, so call this from a background thread.
+     *
+     * @param nameFilter which block names (as stored in the cache) to report
+     * @param out        called once per matching block, from the calling thread
+     */
+    public void scanKnown(int centerX, int centerZ, int radius, Predicate<String> nameFilter, BiConsumer<String, BlockPos> out) {
+        final long radiusSq = (long) radius * radius;
+        final Path dir = Paths.get(this.directory);
+        for (int regionX = (centerX - radius) >> 9; regionX <= (centerX + radius) >> 9; regionX++) {
+            for (int regionZ = (centerZ - radius) >> 9; regionZ <= (centerZ + radius) >> 9; regionZ++) {
+                if (regionDistanceSq(regionX, regionZ, centerX, centerZ) > radiusSq) {
+                    continue;
+                }
+                Map<String, List<BlockPos>> blocks;
+                CachedRegion inRam = getRegion(regionX, regionZ);
+                if (inRam != null) {
+                    blocks = inRam.collectSpecialBlocks();
+                } else if (Files.exists(CachedRegion.getRegionFile(dir, regionX, regionZ))) {
+                    blocks = RegionIndex.readOrBuild(dir, regionX, regionZ, dimension);
+                } else {
+                    continue;
+                }
+                for (Map.Entry<String, List<BlockPos>> entry : blocks.entrySet()) {
+                    if (!nameFilter.test(entry.getKey())) {
+                        continue;
+                    }
+                    for (BlockPos pos : entry.getValue()) {
+                        long dx = pos.getX() - centerX;
+                        long dz = pos.getZ() - centerZ;
+                        if (dx * dx + dz * dz <= radiusSq) {
+                            out.accept(entry.getKey(), pos);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @return how many regions within the radius are only on disk and have no up to date index, i.e. how many
+     * regions {@link #scanKnown} would have to parse (slowly) first
+     */
+    public int regionsNeedingIndex(int centerX, int centerZ, int radius) {
+        final long radiusSq = (long) radius * radius;
+        final Path dir = Paths.get(this.directory);
+        int count = 0;
+        for (int regionX = (centerX - radius) >> 9; regionX <= (centerX + radius) >> 9; regionX++) {
+            for (int regionZ = (centerZ - radius) >> 9; regionZ <= (centerZ + radius) >> 9; regionZ++) {
+                if (regionDistanceSq(regionX, regionZ, centerX, centerZ) > radiusSq
+                        || getRegion(regionX, regionZ) != null
+                        || !Files.exists(CachedRegion.getRegionFile(dir, regionX, regionZ))) {
+                    continue;
+                }
+                if (!RegionIndex.isFresh(dir, regionX, regionZ)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Builds the index of every region file on disk that doesn't have an up to date one, one region at a time (so only
+     * one region is ever parsed in RAM). Slow, call from a background thread.
+     *
+     * @return how many indexes were built
+     */
+    public int reindexAll() {
+        final Path dir = Paths.get(this.directory);
+        List<String> files;
+        try (Stream<Path> listing = Files.list(dir)) {
+            files = listing.map(p -> p.getFileName().toString())
+                    .filter(name -> name.startsWith("r.") && name.endsWith(".bcr"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return 0;
+        }
+        int built = 0;
+        for (String file : files) {
+            String[] parts = file.split("\\.");
+            if (parts.length != 4) {
+                continue;
+            }
+            int regionX;
+            int regionZ;
+            try {
+                regionX = Integer.parseInt(parts[1]);
+                regionZ = Integer.parseInt(parts[2]);
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            if (getRegion(regionX, regionZ) != null || RegionIndex.isFresh(dir, regionX, regionZ)) {
+                continue; // in RAM: its index gets written on its next save
+            }
+            RegionIndex.build(dir, regionX, regionZ, dimension);
+            built++;
+        }
+        return built;
+    }
+
+    /**
+     * Squared distance in blocks from a point to the closest point of a region
+     */
+    private static long regionDistanceSq(int regionX, int regionZ, int x, int z) {
+        long minX = (long) regionX << 9;
+        long minZ = (long) regionZ << 9;
+        long dx = Math.max(0L, Math.max(minX - x, x - (minX + 511)));
+        long dz = Math.max(0L, Math.max(minZ - z, z - (minZ + 511)));
+        return dx * dx + dz * dz;
     }
 
     private void updateCachedChunk(CachedChunk chunk) {

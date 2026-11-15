@@ -24,6 +24,9 @@ Watch this [showcase video](https://youtu.be/CZkLXWo4Fg4)!
 
 # Commands
 
+- `ride <x> <z>` (while mounted on a tamed horse/donkey/mule/camel, a pig with a carrot on a stick, or a boat: steers it to the target. `ride stop` to abort; settings `rideArrivalRadius`, `rideDismountOnArrival`)
+- `map` (look up what the world cache remembers from any distance without using RAM: `map`, `map <block> [radius] [limit]`, `map reindex`; which blocks are remembered is the `extraCachedBlocks` setting, by default diamonds, ancient debris, emeralds and village bells)
+
 [Tutorial playlist](https://www.youtube.com/playlist?list=PLnwnJ1qsS7CoQl9Si-RTluuzCo_4Oulpa)
 
 **All** of these commands may need a prefix before them, as above ^.

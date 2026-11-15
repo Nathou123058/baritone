@@ -1552,6 +1552,34 @@ public final class Settings {
     public final Setting<Boolean> elytraTermsAccepted = new Setting<>(false);
 
     /**
+     * Blocks whose exact positions the world cache remembers, on top of the built-in list (chests, spawners, beds...).
+     * Remembered positions can be queried from any distance with {@code #map}, at almost no RAM cost.
+     * <p>
+     * Only affects chunks cached from now on, so already explored areas have to be loaded once more.
+     * Every block added here costs a little disk space per chunk that contains it, so keep it to rare blocks.
+     */
+    public final Setting<List<Block>> extraCachedBlocks = new Setting<>(new ArrayList<>(Arrays.asList(
+            Blocks.DIAMOND_ORE,
+            Blocks.DEEPSLATE_DIAMOND_ORE,
+            Blocks.ANCIENT_DEBRIS,
+            Blocks.EMERALD_ORE,
+            Blocks.DEEPSLATE_EMERALD_ORE,
+            Blocks.BELL // every village has one
+    )));
+
+    /**
+     * How close (horizontally, in blocks) the vehicle has to get to the destination of {@code #ride} before
+     * it counts as arrived. Mounts and boats don't stop on a dime, so don't set this too low.
+     */
+    public final Setting<Double> rideArrivalRadius = new Setting<>(3.0D);
+
+    /**
+     * Dismount automatically once {@code #ride} arrives. Pigs can't be stopped while ridden (they keep
+     * walking as long as you hold the carrot on a stick), so they are always dismounted on arrival.
+     */
+    public final Setting<Boolean> rideDismountOnArrival = new Setting<>(false);
+
+    /**
      * Verbose chat logging in elytra mode
      */
     public final Setting<Boolean> elytraChatSpam = new Setting<>(false);

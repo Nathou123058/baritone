@@ -106,6 +106,28 @@ public final class CachedRegion implements ICachedRegion {
         return res;
     }
 
+    /**
+     * @return every special block (chests, ores...) of this region, as block name to absolute positions
+     */
+    synchronized Map<String, List<BlockPos>> collectSpecialBlocks() {
+        Map<String, List<BlockPos>> res = new HashMap<>();
+        for (int chunkX = 0; chunkX < 32; chunkX++) {
+            for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
+                CachedChunk chunk = chunks[chunkX][chunkZ];
+                if (chunk == null) {
+                    continue;
+                }
+                for (String name : chunk.getRelativeBlocks().keySet()) {
+                    ArrayList<BlockPos> absolute = chunk.getAbsoluteBlocks(name);
+                    if (absolute != null) {
+                        res.computeIfAbsent(name, k -> new ArrayList<>()).addAll(absolute);
+                    }
+                }
+            }
+        }
+        return res;
+    }
+
     public final synchronized void updateCachedChunk(int chunkX, int chunkZ, CachedChunk chunk) {
         this.chunks[chunkX][chunkZ] = chunk;
         hasUnsavedChanges = true;
@@ -180,6 +202,12 @@ public final class CachedRegion implements ICachedRegion {
                         }
                     }
                 }
+            }
+            try {
+                // tiny sidecar listing the special blocks, so they can be queried without loading this region
+                RegionIndex.write(path, this.x, this.z, collectSpecialBlocks());
+            } catch (Exception ex) {
+                ex.printStackTrace(); // never let the index break saving the region itself
             }
             hasUnsavedChanges = false;
             System.out.println("Saved region successfully");
@@ -355,7 +383,7 @@ public final class CachedRegion implements ICachedRegion {
         return this.z;
     }
 
-    private static Path getRegionFile(Path cacheDir, int regionX, int regionZ) {
+    static Path getRegionFile(Path cacheDir, int regionX, int regionZ) {
         return Paths.get(cacheDir.toString(), "r." + regionX + "." + regionZ + ".bcr");
     }
 }

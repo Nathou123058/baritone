@@ -80,6 +80,7 @@ public class Baritone implements IBaritone {
     private final FarmProcess farmProcess;
     private final InventoryPauserProcess inventoryPauserProcess;
     private final IElytraProcess elytraProcess;
+    private final RideProcess rideProcess;
 
     private final PathingControlManager pathingControlManager;
     private final SelectionManager selectionManager;
@@ -123,6 +124,7 @@ public class Baritone implements IBaritone {
             this.farmProcess             = this.registerProcess(FarmProcess::new);
             this.inventoryPauserProcess  = this.registerProcess(InventoryPauserProcess::new);
             this.elytraProcess           = this.registerProcess(ElytraProcess::create);
+            this.rideProcess             = this.registerProcess(RideProcess::new);
             this.registerProcess(BackfillProcess::new);
         }
 
@@ -238,6 +240,11 @@ public class Baritone implements IBaritone {
     @Override
     public IElytraProcess getElytraProcess() {
         return this.elytraProcess;
+    }
+
+    @Override
+    public RideProcess getRideProcess() {
+        return this.rideProcess;
     }
 
     @Override

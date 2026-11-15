@@ -17,6 +17,7 @@
 
 package baritone.cache;
 
+import baritone.Baritone;
 import baritone.api.utils.BlockUtils;
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.pathing.PathingBlockType;
@@ -51,6 +52,8 @@ public final class ChunkPacker {
         //long start = System.nanoTime() / 1000000L;
 
         Map<String, List<BlockPos>> specialBlocks = new HashMap<>();
+        // snapshot of the user-configurable list, so the hot loop below doesn't touch the settings
+        final Set<Block> extraTracked = new HashSet<>(Baritone.settings().extraCachedBlocks.value);
         final int height = chunk.getLevel().dimensionType().height();
         BitSet bitSet = new BitSet(CachedChunk.size(height));
         try {
@@ -82,7 +85,7 @@ public final class ChunkPacker {
                             bitSet.set(index, bits[0]);
                             bitSet.set(index + 1, bits[1]);
                             Block block = state.getBlock();
-                            if (CachedChunk.BLOCKS_TO_KEEP_TRACK_OF.contains(block)) {
+                            if (CachedChunk.BLOCKS_TO_KEEP_TRACK_OF.contains(block) || (!extraTracked.isEmpty() && extraTracked.contains(block))) {
                                 String name = BlockUtils.blockToString(block);
                                 specialBlocks.computeIfAbsent(name, b -> new ArrayList<>()).add(new BlockPos(x, y+chunk.getMinBuildHeight(), z));
                             }
