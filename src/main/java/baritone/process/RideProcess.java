@@ -87,6 +87,12 @@ public final class RideProcess extends BaritoneProcessHelper implements IRidePro
     private int stuckTicks;
     private float lastSide = 1;
 
+    /**
+     * Ticks left to hold the jump key (a jump is charged by holding it and happens when it is released)
+     */
+    private int jumpHeld;
+    private int jumpCooldown;
+
     public RideProcess(Baritone baritone) {
         super(baritone);
     }
@@ -158,6 +164,8 @@ public final class RideProcess extends BaritoneProcessHelper implements IRidePro
         stuckTicks = 0;
         lastSide = 1;
         dismountTicks = 0;
+        jumpHeld = 0;
+        jumpCooldown = 0;
     }
 
     /**
@@ -167,6 +175,7 @@ public final class RideProcess extends BaritoneProcessHelper implements IRidePro
         target = null;
         stuckReference = null;
         stuckTicks = 0;
+        jumpHeld = 0;
         baritone.getInputOverrideHandler().clearAllKeys();
     }
 
@@ -223,7 +232,13 @@ public final class RideProcess extends BaritoneProcessHelper implements IRidePro
 
         BlockStateInterface bsi = new BlockStateInterface(ctx);
         float desiredYaw = (float) (Mth.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
-        Float heading = chooseHeading(kind, vehicle, bsi, desiredYaw);
+        boolean jump = false;
+        Float heading;
+        if (kind == Kind.HORSE) {
+            jump = updateJump(vehicle, bsi, desiredYaw);
+        }
+        // while a jump is charging, keep facing the wall we are about to jump over
+        heading = jumpHeld > 0 ? Float.valueOf(desiredYaw) : chooseHeading(kind, vehicle, bsi, desiredYaw);
 
         boolean forward = false;
         boolean left = false;
@@ -243,12 +258,12 @@ public final class RideProcess extends BaritoneProcessHelper implements IRidePro
             }
         }
 
-        // never touch SNEAK / BACK / JUMP here: sneak dismounts
+        // never touch SNEAK here: sneak dismounts
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, forward);
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_LEFT, left);
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_RIGHT, right);
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_BACK, false);
-        baritone.getInputOverrideHandler().setInputForceState(Input.JUMP, false);
+        baritone.getInputOverrideHandler().setInputForceState(Input.JUMP, jump);
         baritone.getInputOverrideHandler().setInputForceState(Input.SNEAK, false);
 
         // we never ask for a path, so this only makes sure the pathing behavior stays idle
@@ -264,6 +279,57 @@ public final class RideProcess extends BaritoneProcessHelper implements IRidePro
             baritone.getInputOverrideHandler().clearAllKeys();
         }
         return new PathingCommand(null, PathingCommandType.CANCEL_AND_SET_GOAL);
+    }
+
+    /**
+     * A jumping mount is charged by holding the jump key, and jumps when it is released. Horses already step up one block
+     * by themselves, so this is only for walls up to two blocks high.
+     *
+     * @return whether the jump key should be held this tick
+     */
+    private boolean updateJump(Entity vehicle, BlockStateInterface bsi, float desiredYaw) {
+        if (jumpHeld > 0) {
+            jumpHeld--;
+            if (jumpHeld == 0) {
+                jumpCooldown = 40;
+                return false; // released: the mount jumps now
+            }
+            return true;
+        }
+        if (jumpCooldown > 0) {
+            jumpCooldown--;
+            return false;
+        }
+        if (!headingFree(Kind.HORSE, vehicle, bsi, desiredYaw) && jumpableAhead(vehicle, bsi, desiredYaw)) {
+            jumpHeld = Math.max(2, Baritone.settings().rideJumpChargeTicks.value);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Is the thing in front of us a wall of at most two blocks, with room to land on top and nothing nasty in it?
+     */
+    private boolean jumpableAhead(Entity vehicle, BlockStateInterface bsi, float yaw) {
+        double rad = Math.toRadians(yaw);
+        int bx = Mth.floor(vehicle.getX() - Math.sin(rad) * 1.4);
+        int bz = Mth.floor(vehicle.getZ() + Math.cos(rad) * 1.4);
+        int by = feetY(bsi, vehicle);
+        int height = Math.max(2, (int) Math.ceil(vehicle.getBbHeight()));
+        if (MovementHelper.canWalkThrough(bsi, bx, by + 1, bz)) {
+            return false; // not a wall: a step, a hazard or a drop
+        }
+        for (int y = by; y <= by + 1; y++) {
+            if (MovementHelper.avoidWalkingInto(bsi.get0(bx, y, bz))) {
+                return false;
+            }
+        }
+        for (int y = by + 2; y < by + 2 + height; y++) {
+            if (!MovementHelper.canWalkThrough(bsi, bx, y, bz)) {
+                return false; // taller than two blocks, or a ceiling
+            }
+        }
+        return true;
     }
 
     private boolean isStuck(double px, double pz) {

@@ -81,7 +81,7 @@ public class RideCommand extends Command {
         return Arrays.asList(
                 "Mount a tamed and saddled horse, donkey, mule or camel, a pig (holding a carrot on a stick), or a boat, then run this command.",
                 "",
-                "Baritone steers in a straight line towards the target and does simple look-ahead to avoid walls, drops and liquids",
+                "Baritone steers in a straight line towards the target, jumps over walls up to two blocks high (horses), and avoids drops and liquids",
                 "(land mounts) or anything that isn't water or ice (boats). It is not a pathfinder, so it can get stuck behind big obstacles.",
                 "",
                 "Usage:",
@@ -90,7 +90,7 @@ public class RideCommand extends Command {
                 "> ride <x> <y> <z> - Ride to an X,Y,Z position (Y is ignored)",
                 "> ride stop - Stop riding (does not dismount)",
                 "",
-                "Settings: rideArrivalRadius, rideDismountOnArrival"
+                "Settings: rideArrivalRadius, rideDismountOnArrival, rideJumpChargeTicks"
         );
     }
 }

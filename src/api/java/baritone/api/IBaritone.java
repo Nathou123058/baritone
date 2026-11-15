@@ -101,6 +101,12 @@ public interface IBaritone {
     IRideProcess getRideProcess();
 
     /**
+     * @return The {@link IBeatProcess} instance
+     * @see IBeatProcess
+     */
+    IBeatProcess getBeatProcess();
+
+    /**
      * @return The {@link IWorldProvider} instance
      * @see IWorldProvider
      */

@@ -70,7 +70,8 @@ public final class DefaultCommands {
                 new SelCommand(baritone),
                 new ElytraCommand(baritone),
                 new RideCommand(baritone),
-                new MapCommand(baritone)
+                new MapCommand(baritone),
+                new BeatCommand(baritone)
         ));
         ExecutionControlCommands prc = new ExecutionControlCommands(baritone);
         commands.add(prc.pauseCommand);

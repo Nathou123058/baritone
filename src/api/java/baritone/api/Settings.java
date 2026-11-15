@@ -1574,6 +1574,12 @@ public final class Settings {
     public final Setting<Double> rideArrivalRadius = new Setting<>(3.0D);
 
     /**
+     * For jumping mounts (horses, donkeys, mules, camels): how many ticks the jump is charged before it is released.
+     * 10 ticks is a full power jump, which clears a wall two blocks high on an average horse.
+     */
+    public final Setting<Integer> rideJumpChargeTicks = new Setting<>(10);
+
+    /**
      * Dismount automatically once {@code #ride} arrives. Pigs can't be stopped while ridden (they keep
      * walking as long as you hold the carrot on a stick), so they are always dismounted on arrival.
      */
