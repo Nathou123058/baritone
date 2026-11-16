@@ -100,6 +100,17 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
     private Vec3i origin;
     private int ticks;
     private boolean paused;
+
+    /**
+     * What the last calculation found that the schematic needs and we can't place (block state to number of positions)
+     */
+    private Map<BlockState, Integer> lastMissing = new HashMap<>();
+
+    /**
+     * Set when we ran out of materials and {@code buildAutoSupply} is on: the supply process fetches them, then calls
+     * {@link #supplyDone()}.
+     */
+    private boolean awaitingSupply;
     private int layer;
     private int numRepeats;
     private List<BlockState> approxPlaceable;
@@ -173,6 +184,27 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
 
     public void resume() {
         paused = false;
+    }
+
+    /**
+     * @return whether the build is waiting for {@link baritone.process.BuildSupplyProcess} to bring materials
+     */
+    public boolean isAwaitingSupply() {
+        return awaitingSupply && schematic != null;
+    }
+
+    /**
+     * @return a copy of what the schematic needs and we can't place yet
+     */
+    public Map<BlockState, Integer> getMissingMaterials() {
+        return new HashMap<>(lastMissing);
+    }
+
+    /**
+     * The supply process has what was missing (or gave up): carry on building (or stay paused if it gave up)
+     */
+    public void supplyDone() {
+        awaitingSupply = false;
     }
 
     public void pause() {
@@ -455,6 +487,10 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
         if (recursions > 100) { // onTick calls itself, don't crash
             return new PathingCommand(null, PathingCommandType.SET_GOAL_AND_PATH);
         }
+        if (awaitingSupply) {
+            // BuildSupplyProcess is gathering what we need, stay out of its way
+            return new PathingCommand(null, PathingCommandType.DEFER);
+        }
         approxPlaceable = approxPlaceable(36);
         if (baritone.getInputOverrideHandler().isInputForcedDown(Input.CLICK_LEFT)) {
             ticks = 5;
@@ -613,6 +649,11 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
                     layer++;
                     return onTick(calcFailed, isSafeToCancel, recursions + 1);
                 }
+                if (Baritone.settings().buildAutoSupply.value && !lastMissing.isEmpty()) {
+                    logDirect("Il manque des matériaux : je vais les chercher, puis je reprends la construction (buildAutoSupply).");
+                    awaitingSupply = true;
+                    return new PathingCommand(null, PathingCommandType.DEFER);
+                }
                 logDirect("Unable to do it. Pausing. resume to resume, cancel to cancel");
                 paused = true;
                 return new PathingCommand(null, PathingCommandType.REQUEST_PAUSE);
@@ -746,6 +787,9 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
                 }
             }
         });
+        if (logMissing) {
+            lastMissing = new HashMap<>(missing);
+        }
         incorrectPositions.removeAll(outOfBounds);
         List<Goal> toBreak = new ArrayList<>();
         breakable.forEach(pos -> toBreak.add(breakGoal(pos, bcc)));
@@ -991,6 +1035,8 @@ public final class BuilderProcess extends BaritoneProcessHelper implements IBuil
         layer = Baritone.settings().startAtLayer.value;
         numRepeats = 0;
         paused = false;
+        awaitingSupply = false;
+        lastMissing = new HashMap<>();
         observedCompleted = null;
     }
 

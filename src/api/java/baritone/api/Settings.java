@@ -321,6 +321,13 @@ public final class Settings {
     public final Setting<Boolean> buildIgnoreExisting = new Setting<>(false);
 
     /**
+     * When a build runs out of materials, go and get them (mine, craft, smelt...) and carry on, instead of pausing.
+     * Needs to be able to survive on its own for a while, like {@code #beat}: it fights monsters that get too close,
+     * eats and hunts.
+     */
+    public final Setting<Boolean> buildAutoSupply = new Setting<>(true);
+
+    /**
      * If this is true, the builder will ignore directionality of certain blocks like glazed terracotta.
      */
     public final Setting<Boolean> buildIgnoreDirection = new Setting<>(false);

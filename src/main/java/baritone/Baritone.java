@@ -127,6 +127,7 @@ public class Baritone implements IBaritone {
             this.elytraProcess           = this.registerProcess(ElytraProcess::create);
             this.rideProcess             = this.registerProcess(RideProcess::new);
             this.beatProcess             = this.registerProcess(BeatProcess::new);
+            this.registerProcess(BuildSupplyProcess::new);
             this.registerProcess(BackfillProcess::new);
         }
 

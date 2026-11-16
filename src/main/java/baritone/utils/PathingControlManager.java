@@ -205,7 +205,12 @@ public class PathingControlManager implements IPathingControlManager {
             } else if (exec.commandType != PathingCommandType.DEFER) {
                 inControlThisTick = proc;
                 if (!proc.isTemporary()) {
-                    iterator.forEachRemaining(IBaritoneProcess::onLostControl);
+                    iterator.forEachRemaining(other -> {
+                        if (other == baritone.getBuilderProcess() && baritone.getBuilderProcess().isAwaitingSupply()) {
+                            return; // the build is only waiting for materials, don't lose it
+                        }
+                        other.onLostControl();
+                    });
                 }
                 return exec;
             }
