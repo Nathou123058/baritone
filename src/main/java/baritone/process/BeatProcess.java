@@ -84,6 +84,8 @@ public final class BeatProcess extends BaritoneProcessHelper implements IBeatPro
     };
 
     private final Survival survival;
+    private final Endgame endgame;
+    private boolean endgameStarted;
 
     private boolean running;
     private boolean previousAllowInventory;
@@ -105,6 +107,7 @@ public final class BeatProcess extends BaritoneProcessHelper implements IBeatPro
     public BeatProcess(Baritone baritone) {
         super(baritone);
         this.survival = new Survival(baritone);
+        this.endgame = new Endgame(baritone, survival);
     }
 
     // -------------------------------------------------------------------------------------------- public API
@@ -149,6 +152,8 @@ public final class BeatProcess extends BaritoneProcessHelper implements IBeatPro
         ignitionCooldownUntil = 0;
         enterTicks = 0;
         arrivedInNether = false;
+        endgameStarted = false;
+        endgame.reset();
         survival.reset();
     }
 
@@ -209,8 +214,19 @@ public final class BeatProcess extends BaritoneProcessHelper implements IBeatPro
         if (basics != null) {
             return basics;
         }
-        if (ctx.world().dimension() == Level.NETHER) {
-            return inNether();
+        if (ctx.world().dimension() == Level.NETHER && !endgameStarted) {
+            endgameStarted = true;
+            logDirect("Beat: Nether atteint. Suite : blaze rods, perles d'ender, stronghold, portail du End, dragon.");
+        }
+        if (endgameStarted) {
+            PathingCommand c = endgame.tick();
+            if (endgame.done()) {
+                return finish("terminé (fin de la partie, ou arrêt de l'étape finale).");
+            }
+            setStep(endgame.describe());
+            if (c != null) {
+                return c;
+            }
         }
         if (survival.delegating() || baritone.getBuilderProcess().isActive()) {
             return DEFER;
@@ -365,16 +381,5 @@ public final class BeatProcess extends BaritoneProcessHelper implements IBeatPro
         p.setYRot(rotation.getYaw());
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, true);
         return HOLD;
-    }
-
-    // ---------------------------------------------------------------------------------------------- nether
-
-    private PathingCommand inNether() {
-        baritone.getInputOverrideHandler().clearAllKeys();
-        if (!arrivedInNether) {
-            arrivedInNether = true;
-            return finish("Nether atteint ! Les étapes suivantes (forteresse, blazes, endermen, forteresse du End, dragon) ne sont pas encore codées.");
-        }
-        return DEFER;
     }
 }

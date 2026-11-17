@@ -76,7 +76,7 @@ public class BeatCommand extends Command {
                 "Plays survival from nothing, without cheats: it chops wood, crafts, mines, smelts, eats, hunts and fights monsters that get too close.",
                 "",
                 "Work in progress, built in stages. Implemented: it crafts anything it needs from the game recipes (full iron gear, shield, bucket, flint and steel, diamond pickaxe), gets obsidian, builds and lights a nether portal and enters it.",
-                "Not implemented yet: the nether fortress, blaze rods, ender pearls, the stronghold, the End and the dragon.",
+                "Then it goes on: blaze rods in a nether fortress, ender pearls, eyes of ender, the stronghold, the End portal and the dragon (experimental, needs watching).",
                 "",
                 "Use it in survival, with no tools in your inventory, and keep an eye on it: it has only been tested on paper.",
                 "",

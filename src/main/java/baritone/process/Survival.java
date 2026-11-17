@@ -42,7 +42,10 @@ import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Blaze;
+import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.CraftingMenu;
@@ -158,6 +161,10 @@ public final class Survival implements Helper {
         MOBS.put(Items.WHITE_WOOL, new Class<?>[]{Sheep.class});
         MOBS.put(Items.CHICKEN, new Class<?>[]{Chicken.class});
         MOBS.put(Items.FEATHER, new Class<?>[]{Chicken.class});
+        MOBS.put(Items.BLAZE_ROD, new Class<?>[]{Blaze.class});
+        MOBS.put(Items.ENDER_PEARL, new Class<?>[]{EnderMan.class});
+        MOBS.put(Items.STRING, new Class<?>[]{Spider.class});
+        MOBS.put(Items.BONE, new Class<?>[]{net.minecraft.world.entity.monster.Skeleton.class});
     }
 
     private static final Set<Item> BAD_FOOD = new HashSet<>(Arrays.asList(
@@ -396,7 +403,7 @@ public final class Survival implements Helper {
         LivingEntity best = null;
         double bestDist = FIGHT_START_SQ;
         for (Entity entity : ctx.entities()) {
-            if (!(entity instanceof Monster) || !entity.isAlive()) {
+            if (!(entity instanceof Enemy) || !(entity instanceof LivingEntity) || !entity.isAlive()) {
                 continue;
             }
             // endermen, zombified piglins...: leave them alone unless they are angry
@@ -415,6 +422,10 @@ public final class Survival implements Helper {
     /**
      * Face the target, walk up to it and hit it when the attack is charged
      */
+    public PathingCommand strike(LivingEntity target) {
+        return attack(ctx.player(), target);
+    }
+
     private PathingCommand attack(LocalPlayer p, LivingEntity target) {
         double dist = Math.sqrt(p.distanceToSqr(target));
         Rotation rotation = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), new Vec3(target.getX(), target.getY(0.5), target.getZ()), ctx.playerRotations());
@@ -485,11 +496,11 @@ public final class Survival implements Helper {
     public PathingCommand foraging() {
         LocalPlayer p = ctx.player();
         ItemEntity drop = null;
-        double dropDist = 8 * 8;
+        double dropDist = 16 * 16;
         for (Entity entity : ctx.entities()) {
             if (entity instanceof ItemEntity && entity.isAlive()) {
                 ItemStack stack = ((ItemEntity) entity).getItem();
-                if ((isGoodFood(stack) || MOBS.containsKey(stack.getItem())) && p.distanceToSqr(entity) < dropDist) {
+                if ((isGoodFood(stack) || MOBS.containsKey(stack.getItem()) || stack.is(Items.ENDER_EYE)) && p.distanceToSqr(entity) < dropDist) {
                     drop = (ItemEntity) entity;
                     dropDist = p.distanceToSqr(entity);
                 }
